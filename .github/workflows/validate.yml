@@ -18,5 +18,15 @@ jobs:
           node-version: '20'
       - name: Validate manifest
         run: node scripts/validate-manifest.mjs
+      # Every script the manifest ships, not just the entry — a parse error in
+      # any of them is a plugin that installs fine and then does nothing.
       - name: Parse plugin scripts
-        run: node --check app.js
+        run: |
+          for f in app.js panel.js src/*.js; do
+            echo "checking $f"
+            node --check "$f"
+          done
+      # Drives src/provider.js against canned SSE — the Responses-API event
+      # mapping is the part a manifest check can't see.
+      - name: Run tests
+        run: node --test test/*.test.mjs

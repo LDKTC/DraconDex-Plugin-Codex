@@ -24,6 +24,14 @@ const MAX_TABLES = 10;
 const MAX_COLS = 25;
 const MAX_FILES = 30;
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
+// v4.3.0 — panels and permissions. Both optional; a manifest that omits them
+// is exactly as valid as it was before.
+const PANEL_ID_RE = /^[a-z0-9_-]{1,24}$/;
+const MAX_PANELS = 5;
+const MAX_PANEL_TITLE = 40;
+const MAX_PANEL_ICON = 8;
+const MAX_NET_ORIGINS = 10;
+const CONTEXT_KINDS = new Set(['module']);
 
 const manifestPath = resolve(process.argv[2] || 'dracondex-plugin.json');
 const root = dirname(manifestPath);
@@ -38,7 +46,7 @@ try {
   process.exit(1);
 }
 
-const { id, name, version, entry, files, tables } = manifest;
+const { id, name, version, entry, files, tables, panels, permissions } = manifest;
 
 if (!PLUGIN_ID_RE.test(String(id || ''))) errors.push('invalid or missing "id" (^[a-z0-9_]{1,20}$)');
 if (!name || typeof name !== 'string' || name.length > 80) errors.push('invalid or missing "name" (string, max 80 chars)');
@@ -90,6 +98,63 @@ for (const t of tableList) {
   }
 }
 
+// --- panels (v4.3.0) -------------------------------------------------------
+const fileList = Array.isArray(files) ? files : [];
+const panelList = panels == null ? [] : panels;
+if (panels != null && (!Array.isArray(panels) || panels.length > MAX_PANELS)) {
+  errors.push(`"panels" must be an array of at most ${MAX_PANELS} entries`);
+} else {
+  const seenPanels = new Set();
+  for (const p of panelList) {
+    if (!p || typeof p !== 'object') { errors.push('invalid panel entry'); continue; }
+    const pid = String(p.id || '');
+    if (!PANEL_ID_RE.test(pid)) { errors.push(`invalid panel id: ${p.id} (^[a-z0-9_-]{1,24}$)`); continue; }
+    if (seenPanels.has(pid)) errors.push(`duplicate panel id: ${pid}`);
+    seenPanels.add(pid);
+    if (!p.title || typeof p.title !== 'string' || p.title.length > MAX_PANEL_TITLE) {
+      errors.push(`invalid panel title for "${pid}" (string, max ${MAX_PANEL_TITLE} chars)`);
+    }
+    if (p.icon != null && (typeof p.icon !== 'string' || p.icon.length > MAX_PANEL_ICON)) {
+      errors.push(`invalid panel icon for "${pid}" (string, max ${MAX_PANEL_ICON} chars)`);
+    }
+    if (!p.entry || typeof p.entry !== 'string' || !/\.html?$/i.test(p.entry)) {
+      errors.push(`panel "${pid}" needs an HTML "entry"`);
+    } else if (!fileList.includes(p.entry)) {
+      errors.push(`panel "${pid}" entry "${p.entry}" must be listed in "files"`);
+    }
+  }
+}
+
+// --- permissions (v4.3.0) --------------------------------------------------
+// An entry must be a bare https ORIGIN. The app compares origins exactly, so a
+// path here would silently never match anything.
+const netOrigins = [];
+if (permissions != null) {
+  if (typeof permissions !== 'object' || Array.isArray(permissions)) {
+    errors.push('"permissions" must be an object');
+  } else {
+    const { net, context } = permissions;
+    if (net != null) {
+      if (!Array.isArray(net) || net.length > MAX_NET_ORIGINS) {
+        errors.push(`"permissions.net" must be an array of at most ${MAX_NET_ORIGINS} origins`);
+      } else {
+        for (const value of net) {
+          let u = null;
+          try { u = new URL(String(value)); } catch (_) { /* reported below */ }
+          const ok = u && u.protocol === 'https:' && !u.username && !u.password
+            && !u.search && !u.hash && (u.pathname === '/' || u.pathname === '');
+          if (ok) netOrigins.push(u.origin);
+          else errors.push(`invalid net origin (bare https:// origin only): ${value}`);
+        }
+      }
+    }
+    if (context != null) {
+      if (!Array.isArray(context)) errors.push('"permissions.context" must be an array');
+      else for (const k of context) if (!CONTEXT_KINDS.has(k)) errors.push(`unknown context permission: ${k}`);
+    }
+  }
+}
+
 for (const w of warnings) console.warn(`! ${w}`);
 if (errors.length) {
   console.error(`✗ ${manifestPath}`);
@@ -99,4 +164,6 @@ if (errors.length) {
 const tableSummary = tableList.map((t) => `plg_${id}_${t.name}`).join(', ') || 'none';
 console.log(`✓ ${manifest.name} (${id}) v${version ?? '—'}`);
 console.log(`  files:  ${files.length} (entry: ${entry})`);
+if (panelList.length) console.log(`  panels: ${panelList.map((p) => `${p.id} → ${p.entry}`).join(', ')}`);
+if (netOrigins.length) console.log(`  net:    ${netOrigins.join(', ')}`);
 console.log(`  tables: ${tableSummary}`);

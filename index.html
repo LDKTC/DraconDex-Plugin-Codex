@@ -2,40 +2,33 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Example Plugin</title>
+  <title>Codex Chat</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-  <!-- Plugin windows are frameless (createPluginWindow in App-DraconDex's
-       main.js sets frame:false), so the page draws its own title bar.
-       .titlebar is the drag region; anything clickable inside it needs
-       .no-drag or the drag region swallows the click. -->
+<body class="window-mode">
+  <!-- Standalone-window entry (Settings → Plugin → Launch). Plugin windows are
+       frameless (createPluginWindow in App-DraconDex's main.js sets
+       frame:false), so the page draws its own title bar. .titlebar is the drag
+       region; anything clickable inside it needs .no-drag or the drag region
+       swallows the click. The docked-panel entry is panel.html, which shares
+       every script below and only differs in this chrome. -->
   <header class="titlebar">
-    <span class="title">Example Plugin</span>
+    <span class="title">Codex Chat</span>
     <button id="close-btn" class="no-drag icon-btn" title="Close">&#x2715;</button>
   </header>
 
-  <main>
-    <p id="offline" class="notice" hidden>
-      Running outside DraconDex — <code>window.pluginApi</code> is missing, so
-      there is no table to read or write. Install this plugin from the app to
-      try it for real.
-    </p>
+  <p id="offline" class="notice" hidden>
+    Running outside DraconDex — <code>window.pluginApi</code> is missing, so
+    there is nowhere to store conversations. Install this plugin from the app
+    to use it.
+  </p>
 
-    <form id="note-form">
-      <input id="note-title" type="text" placeholder="Title" required />
-      <input id="note-body" type="text" placeholder="Body" />
-      <input id="note-rating" type="number" placeholder="Rating" min="0" max="10" />
-      <button type="submit" id="submit-btn">Add note</button>
-      <button type="button" id="cancel-btn" hidden>Cancel</button>
-    </form>
+  <main id="root"></main>
 
-    <p id="error" class="error" hidden></p>
-
-    <ul id="note-list"></ul>
-    <p id="empty" class="muted" hidden>No notes yet.</p>
-  </main>
-
+  <script src="src/store.js"></script>
+  <script src="src/provider.js"></script>
+  <script src="src/ui.js"></script>
+  <script src="src/chat.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
