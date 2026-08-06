@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Example Plugin</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Plugin windows are frameless (createPluginWindow in App-DraconDex's
+       main.js sets frame:false), so the page draws its own title bar.
+       .titlebar is the drag region; anything clickable inside it needs
+       .no-drag or the drag region swallows the click. -->
+  <header class="titlebar">
+    <span class="title">Example Plugin</span>
+    <button id="close-btn" class="no-drag icon-btn" title="Close">&#x2715;</button>
+  </header>
+
+  <main>
+    <p id="offline" class="notice" hidden>
+      Running outside DraconDex — <code>window.pluginApi</code> is missing, so
+      there is no table to read or write. Install this plugin from the app to
+      try it for real.
+    </p>
+
+    <form id="note-form">
+      <input id="note-title" type="text" placeholder="Title" required />
+      <input id="note-body" type="text" placeholder="Body" />
+      <input id="note-rating" type="number" placeholder="Rating" min="0" max="10" />
+      <button type="submit" id="submit-btn">Add note</button>
+      <button type="button" id="cancel-btn" hidden>Cancel</button>
+    </form>
+
+    <p id="error" class="error" hidden></p>
+
+    <ul id="note-list"></ul>
+    <p id="empty" class="muted" hidden>No notes yet.</p>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

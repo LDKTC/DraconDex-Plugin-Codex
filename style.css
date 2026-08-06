@@ -1,0 +1,141 @@
+/* Optional — a plugin can style itself however it likes. These tokens mirror
+   DraconDex's default dark theme (css/tokens.css) so the window doesn't look
+   pasted in; the app does NOT inject its stylesheets into plugin windows, so
+   everything a plugin wants has to live in its own files. */
+:root {
+  --bg: #0f0f13;
+  --surface: #18181f;
+  --raised: #22222d;
+  --hover: #2a2a38;
+  --border: #2e2e3f;
+  --t1: #e8e8f0;
+  --t2: #9090a8;
+  --accent: #6366f1;
+  --danger: #ef4444;
+  --r: 8px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* Any `display:` rule below would otherwise beat the UA stylesheet's
+   [hidden]{display:none} — this keeps the `hidden` attribute meaningful. */
+[hidden] { display: none !important; }
+
+body {
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--t1);
+  font-size: 13px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* The window is frameless, so this bar is the only way to move or close it. */
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 6px 0 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+
+.titlebar .title { flex: 1; font-weight: 600; }
+.no-drag { -webkit-app-region: no-drag; }
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--t2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.icon-btn:hover { background: var(--danger); color: #fff; }
+
+main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+input {
+  flex: 1;
+  min-width: 110px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--raised);
+  color: var(--t1);
+  font: inherit;
+}
+
+input:focus { outline: none; border-color: var(--accent); }
+
+button {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--raised);
+  color: var(--t1);
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover { background: var(--hover); }
+
+#submit-btn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+ul { list-style: none; }
+
+li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  margin-bottom: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+
+.note-text { flex: 1; min-width: 0; word-break: break-word; }
+.note-text p { margin-top: 4px; color: var(--t2); }
+
+.muted { color: var(--t2); }
+
+.notice,
+.error {
+  padding: 10px;
+  margin-bottom: 12px;
+  border-radius: var(--r);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--t2);
+}
+
+.error { border-color: var(--danger); color: var(--danger); }
+
+code {
+  font-family: ui-monospace, monospace;
+  color: var(--t1);
+}

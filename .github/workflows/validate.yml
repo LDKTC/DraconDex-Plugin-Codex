@@ -1,0 +1,22 @@
+# Catches the manifest mistakes that would otherwise only surface as a failed
+# install inside DraconDex. No dependencies to install — the validator is plain
+# Node, and `node --check` just parses the plugin's own scripts.
+name: Validate plugin
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate manifest
+        run: node scripts/validate-manifest.mjs
+      - name: Parse plugin scripts
+        run: node --check app.js

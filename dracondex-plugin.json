@@ -1,0 +1,18 @@
+{
+  "id": "example_plugin",
+  "name": "Example Plugin",
+  "version": "0.1.0",
+  "entry": "index.html",
+  "files": ["index.html", "app.js", "style.css"],
+  "tables": [
+    {
+      "name": "notes",
+      "columns": [
+        { "name": "title", "type": "TEXT" },
+        { "name": "body", "type": "TEXT" },
+        { "name": "rating", "type": "INTEGER" },
+        { "name": "created_at", "type": "TEXT" }
+      ]
+    }
+  ]
+}
