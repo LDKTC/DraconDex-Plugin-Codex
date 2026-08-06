@@ -1,17 +1,59 @@
 {
-  "id": "example_plugin",
-  "name": "Example Plugin",
+  "id": "codex_chat",
+  "name": "Codex Chat",
   "version": "0.1.0",
   "entry": "index.html",
-  "files": ["index.html", "app.js", "style.css"],
+  "files": [
+    "index.html",
+    "panel.html",
+    "app.js",
+    "panel.js",
+    "style.css",
+    "src/store.js",
+    "src/provider.js",
+    "src/chat.js",
+    "src/ui.js"
+  ],
+  "panels": [
+    { "id": "chat", "title": "Codex", "icon": "🤖", "entry": "panel.html" }
+  ],
+  "permissions": {
+    "net": [
+      "https://api.openai.com",
+      "https://auth.openai.com",
+      "https://chatgpt.com"
+    ],
+    "context": ["module"]
+  },
   "tables": [
     {
-      "name": "notes",
+      "name": "session",
       "columns": [
         { "name": "title", "type": "TEXT" },
-        { "name": "body", "type": "TEXT" },
-        { "name": "rating", "type": "INTEGER" },
-        { "name": "created_at", "type": "TEXT" }
+        { "name": "model", "type": "TEXT" },
+        { "name": "system_prompt", "type": "TEXT" },
+        { "name": "module_key", "type": "TEXT" },
+        { "name": "create_at", "type": "TEXT" },
+        { "name": "update_at", "type": "TEXT" }
+      ]
+    },
+    {
+      "name": "message",
+      "columns": [
+        { "name": "session_ref", "type": "INTEGER" },
+        { "name": "role", "type": "TEXT" },
+        { "name": "content", "type": "TEXT" },
+        { "name": "create_at", "type": "TEXT" },
+        { "name": "in_tokens", "type": "INTEGER" },
+        { "name": "out_tokens", "type": "INTEGER" },
+        { "name": "error", "type": "TEXT" }
+      ]
+    },
+    {
+      "name": "config",
+      "columns": [
+        { "name": "ckey", "type": "TEXT" },
+        { "name": "cvalue", "type": "TEXT" }
       ]
     }
   ]

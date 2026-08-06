@@ -1,171 +1,164 @@
-# DraconDex-Plugin-Template
+# DraconDex-Plugin-Codex
 
-Starter template for building a [DraconDex](https://github.com/LDKTC/App-DraconDex)
-plugin. Use this repo as a base: fork/use-as-template it, edit the manifest and
-the files it lists, push, then install it in the app by pasting your repo's
-link.
+A Codex (OpenAI) chat session for
+[DraconDex](https://github.com/LDKTC/App-DraconDex), docked in place of the
+Module Inspector.
 
-> Requires **DraconDex 4.2.0+**, where the feature was renamed from
-> "Github Extensions" to **Plugin** and installing became a single pasted URL.
-> Plugins written for 4.0/4.1 keep working unchanged — see
-> [Legacy: extensions](#legacy-plugins-written-before-v420) at the bottom.
+Install it, open any module, and a **🤖** button appears next to the Module
+Inspector toggle. Click it and the Inspector dock is replaced by a chat panel
+scoped to that module. It also runs as a standalone window if you'd rather have
+the room.
 
-DraconDex plugins are **not** scripts running inside the main app. Each plugin
-opens in its own window with **no access to the main app's data or
-`window.api`** — only to the SQLite table(s) it declares for itself, through
-`window.pluginApi`. For the full architecture and the honest list of what this
-does and doesn't protect against, see
+This is the OpenAI sibling of
+[DraconDex-Plugin-Claude](https://github.com/LDKTC/DraconDex-Plugin-Claude) —
+same layout, same panel behaviour, different provider. Both can be installed at
+once; they use different plugin ids and therefore different tables.
+
+> Requires **DraconDex 4.3.0+** for the docked panel. On 4.2.x it still installs
+> and works as a plain window (Settings → Plugin → Launch) — there is just no
+> button in the main window, because the panel API doesn't exist there yet.
+
+## Connecting
+
+Two modes, in Settings inside the plugin. Both send
+`Authorization: Bearer …`; they differ in where the token comes from and which
+endpoint it is spent at.
+
+### API key — supported, works today
+
+Paste an [OpenAI API key](https://platform.openai.com/api-keys). Requests go to
+`https://api.openai.com/v1/responses`. That's the whole setup.
+
+### Subscription (OAuth) — read this first
+
+OpenAI publishes **no supported API** for driving a ChatGPT subscription from a
+third-party app, and this plugin does not invent one. What this mode implements
+is a standard **OAuth 2.0 + PKCE** client against endpoints *you* supply, and it
+posts to the undocumented ChatGPT backend
+(`https://chatgpt.com/backend-api/codex/responses`), which may refuse an
+unfamiliar client. There are two ways in:
+
+**1. Sign in** — fill in a client ID, authorize URL and token URL (the
+`auth.openai.com` endpoints are prefilled), then press Sign in. Your system
+browser opens and DraconDex captures the redirect, because a plugin page cannot
+listen on a port. The token exchange happens inside the plugin, so a client
+secret never leaves it, and access tokens are refreshed before they expire.
+
+> **The catch.** DraconDex's redirect receiver binds a **random** loopback port
+> — `http://127.0.0.1:<random>/callback`
+> ([`src/db/oauth-loopback.js`](https://github.com/LDKTC/App-DraconDex/blob/main/src/db/oauth-loopback.js)
+> calls `srv.listen(0)`). A provider that requires one exact pre-registered
+> redirect URI will reject that, and OpenAI's own Codex client requires
+> `http://localhost:1455/auth/callback`. So this path works only with an OAuth
+> client that accepts dynamic loopback ports, per
+> [RFC 8252 §7.3](https://www.rfc-editor.org/rfc/rfc8252#section-7.3).
+
+**2. Paste a token** — for everyone the catch applies to. If you have already
+signed in elsewhere (`codex login` writes `~/.codex/auth.json`), paste the
+access token — plus the refresh token if you want it renewed automatically, and
+a ChatGPT account id if your token spans several workspaces. It is stored and
+used exactly like one obtained by signing in.
+
+If neither fits, use API key mode.
+
+## What it can do
+
+- Streams replies as they arrive, with **Stop**
+- Any model id the endpoint accepts — the picker is a free-text field with
+  suggestions, plus a **Fetch models** button that replaces them with what your
+  credentials can actually reach
+- Reasoning effort (`minimal` … `xhigh`) and an optional streamed summary of the
+  model's reasoning
+- Optional system prompt, adjustable max output tokens, overridable base URL
+- One conversation per module, kept separate, plus a History tab
+- Surfaces refusals, cut-off responses, rate limits and API errors as
+  themselves, with **Retry** — rather than swallowing them
+
+Not included: tool use / function calling, file attachments, and server-side
+conversation state (`store` is `false`; the transcript is replayed from this
+plugin's own tables each turn).
+
+## Where your data goes
+
+- **Conversations** live in this plugin's own SQLite tables inside your vault
+  (`plg_codex_chat_session` / `_message` / `_config`). They are never sent
+  anywhere except to the endpoint you configured, as conversation history.
+- **Your API key and OAuth tokens** are stored in that same `config` table **in
+  plain text**. DraconDex has no encrypted credential store — it keeps its own
+  Google Drive client secret the same way — so this is consistent with the rest
+  of the app, not better than it. Treat your vault file accordingly.
+- **Network access** is restricted by the manifest to `https://api.openai.com`,
+  `https://auth.openai.com` and `https://chatgpt.com`, and nothing else.
+  DraconDex shows those hosts in the install preview before you confirm, and
+  enforces them at runtime — a base URL pointing anywhere else is refused.
+
+## The manifest
+
+```json
+{
+  "id": "codex_chat",
+  "name": "Codex Chat",
+  "entry": "index.html",
+  "files": ["index.html", "panel.html", "…"],
+  "panels": [
+    { "id": "chat", "title": "Codex", "icon": "🤖", "entry": "panel.html" }
+  ],
+  "permissions": {
+    "net": ["https://api.openai.com", "https://auth.openai.com", "https://chatgpt.com"],
+    "context": ["module"]
+  },
+  "tables": [ "…" ]
+}
+```
+
+`panels` and `permissions` are the DraconDex 4.3.0 additions; everything else is
+the plugin format from 4.2.0. Full rules are in
 [App-DraconDex's `docs/PLUGINS.md`](https://github.com/LDKTC/App-DraconDex/blob/main/docs/PLUGINS.md).
 
-## Quick start
+`permissions.context: ["module"]` lets the panel receive the open module's id,
+name and kind — enough to keep one conversation per module and to title it.
+Nothing about the module's *content* is shared.
 
-1. Use this repo as a template (or fork it).
-2. Edit `dracondex-plugin.json` — pick your own `id`, `name`, and the tables
-   you want. The `id` becomes part of real DB table names, so choose it once
-   and don't change it after people install.
-3. Edit `index.html` / `app.js` / `style.css`, or replace them entirely — just
-   keep every file the plugin loads listed in the manifest's `files`.
-4. Check the manifest before you push: `node scripts/validate-manifest.mjs`
-   (no dependencies; the same rules the app enforces).
-5. Push, then install it from DraconDex: **Settings → Plugin → Plugins**,
-   paste your repo link, confirm the preview.
+Note that `permissions.net` also gates OAuth: DraconDex checks the authorize
+URL's origin against this same list before opening the browser, which is why the
+auth hosts are declared here and not only the API host.
 
 ## Structure
 
 | File | Purpose |
 | --- | --- |
-| `dracondex-plugin.json` | Manifest: id, name, version, entry point, files, and table schema. |
-| `index.html` | Entry point (must be listed in `files` and match `entry`). |
-| `app.js` | Plugin logic. Talks to its own table via `window.pluginApi.table.*`. |
-| `style.css` | Optional styling. Mirrors the app's dark theme tokens. |
+| `dracondex-plugin.json` | Manifest: id, files, panel, permissions, table schema. |
+| `index.html` + `app.js` | Standalone-window entry (draws its own title bar). |
+| `panel.html` + `panel.js` | Docked-panel entry; asks the host for module context. |
+| `src/store.js` | The three tables, via `window.pluginApi.table.*`. |
+| `src/provider.js` | Responses API client + both auth modes. |
+| `src/chat.js` | Session and turn state; no DOM. |
+| `src/ui.js` | Rendering. Builds nodes, never HTML strings. |
+| `style.css` | Dark theme matching the app; works at 290px and at 900px. |
 | `scripts/validate-manifest.mjs` | Local manifest check. Not shipped — it isn't in `files`. |
 
-Only the paths listed in `files` are ever downloaded, so repo-side extras
-(README, scripts, CI, tests) cost the user nothing.
+Both entries load the same four `src/` scripts and differ only in chrome.
 
-## Manifest (`dracondex-plugin.json`)
+### A constraint worth knowing if you fork this
 
-```json
-{
-  "id": "example_plugin",
-  "name": "Example Plugin",
-  "version": "0.1.0",
-  "entry": "index.html",
-  "files": ["index.html", "app.js", "style.css"],
-  "tables": [
-    {
-      "name": "notes",
-      "columns": [
-        { "name": "title", "type": "TEXT" },
-        { "name": "rating", "type": "INTEGER" }
-      ]
-    }
-  ]
-}
+A docked panel is **reloaded whenever DraconDex re-renders its pane** — editing
+a tag on the module is enough. Nothing may live only in a variable. Every
+message is written to the table at the moment it exists (the question before the
+request goes out, the answer as soon as the stream ends), and the panel rebuilds
+itself from the tables on every load. A reply that was still streaming when a
+reload happened is the only thing that can be lost.
+
+## Developing
+
+```bash
+node scripts/validate-manifest.mjs        # same rules the app enforces on install
+node --check app.js panel.js src/*.js
 ```
 
-Rules the app enforces on install (`validateManifest` in App-DraconDex's
-`src/db/plugin-manifest.js`):
-
-- `id` — `^[a-z0-9_]{1,20}$`. Becomes part of the plugin's real DB table
-  names, so pick it deliberately. Two plugins with the same `id` cannot be
-  installed side by side (`already_installed`).
-- `name` — string, max 80 characters.
-- `version` — optional string, max 40 characters.
-- `entry` — an HTML file, and it must also appear in `files`.
-- `files` — 1 to 30 relative paths (no `..`, no leading `/`, no `\`), each
-  fetched individually and capped at 2 MB. Subdirectories are fine
-  (`ui/panel.js`). The app does not crawl your repo — only files listed here
-  are downloaded.
-- `tables` — up to 10 tables, each with 1 to 25 columns.
-  - table `name`: `^[a-z0-9_]{1,20}$`, and `id`+`name` together must stay
-    within 41 characters (the real table is `plg_<id>_<name>`).
-  - column `name`: `^[a-z][a-z0-9_]{0,29}$`, and cannot be `id`, `rowid`,
-    `oid`, or `_rowid_`.
-  - column `type`: `TEXT`, `INTEGER`, or `REAL` only — no `DEFAULT`, `CHECK`,
-    or `FOREIGN KEY` support.
-
-Every table also gets an implicit `id INTEGER PRIMARY KEY AUTOINCREMENT` that
-you don't declare and can't override; it's the `id` you pass to `update` and
-`delete`.
-
-## The `window.pluginApi` surface
-
-Inside a plugin window there is **no `window.api`**, no Node, and no
-filesystem — only:
-
-```js
-await window.pluginApi.table.getSchema(localName)      // { columns: [{ name, type }, …] }
-await window.pluginApi.table.query(localName, filter)  // rows, newest id first
-await window.pluginApi.table.insert(localName, row)    // { id }
-await window.pluginApi.table.update(localName, id, row)// { changes }
-await window.pluginApi.table.delete(localName, id)     // { changes }
-```
-
-- `localName` is the `name` you declared under `tables` (e.g. `"notes"`), not
-  the internal `plg_*` table name.
-- `filter` is an object of exact-match column equalities ANDed together;
-  `{}` returns everything. There is no operator syntax, no raw SQL, and no
-  pagination — filter and sort the rest in JS.
-- Keys in `filter` and `row` must be declared columns, or the call rejects with
-  `unknown column: …`.
-- Every call is scoped to the tables *this* plugin declared — ownership is
-  resolved from the calling window itself, not from anything the page sends,
-  so there is no way to reach another plugin's data or the main app's data.
-- Calls reject with `not an owned table` if `localName` isn't one of yours.
-
-## Writing the window itself
-
-Plugin windows are created frameless (`frame: false`, 900×650, min 480×360,
-dark `#050506` background). Practical consequences:
-
-- **Draw your own title bar.** Give it `-webkit-app-region: drag` so the
-  window can be moved, and `-webkit-app-region: no-drag` on every button
-  inside it. `index.html` + `style.css` here show the minimum version.
-- **Give the user a way out** — `window.close()` works; there is no OS close
-  button. (The app's plugin list also has a **Stop** button.)
-- **The app's stylesheets are not injected.** Ship whatever CSS you need in
-  your own `files`.
-- `window.prompt()` is unsupported in Electron renderers — use your own UI.
-- Nothing sanitizes your rendering: treat stored rows as data and use
-  `textContent`, not `innerHTML`.
-
-## Installing your plugin for testing
-
-In the DraconDex app: **Settings → Plugin → Plugins**, paste your repo link
-and confirm the preview. Accepted link shapes include:
-
-| Shape | Example |
-| --- | --- |
-| HTTPS + `.git` | `https://github.com/acme/my-plugin.git` |
-| Plain HTTPS | `https://github.com/acme/my-plugin` |
-| SSH / scp | `git@github.com:acme/my-plugin.git` |
-| No scheme | `github.com/acme/my-plugin` |
-| Shorthand | `acme/my-plugin` (assumed GitHub) |
-| Explicit branch | `https://github.com/acme/my-plugin/tree/dev` |
-| GitLab | `https://gitlab.com/acme/team/my-plugin.git` |
-
-Only **github.com** and **gitlab.com** are supported — other hosts are
-rejected with `unsupported_host`. With no branch in the link the app tries
-`main`, then `master`. The manifest is looked up as `dracondex-plugin.json`
-first, then `dracondex-extension.json`.
-
-The preview shows the name/version/id, the files it will download, and the
-tables it will create — it touches neither disk nor DB. Installing re-fetches
-and re-validates everything from the URL alone.
-
-Reinstalling after a change means **uninstall first** (same `id` can't install
-twice), and uninstalling **permanently deletes that plugin's files and
-tables** — so don't develop against data you care about.
-
-## Legacy: plugins written before v4.2.0
-
-Nothing to change. `window.extApi` still exists as an alias for the same
-object, and `dracondex-extension.json` is still found as a fallback manifest
-name. Existing installs were migrated in place (`ext_*` tables → `plg_*`,
-`extensions/` → `plugins/`). New plugins should use the `pluginApi` /
-`dracondex-plugin.json` names; `app.js` here falls back to `extApi` only so
-the same page also runs on 4.0/4.1.
+Then in DraconDex: **Settings → Plugin → Plugins**, paste this repo's link,
+confirm the preview. Reinstalling after a change means uninstalling first (the
+same `id` can't install twice), and **uninstalling permanently deletes this
+plugin's conversations** — so don't develop against a vault you care about.
 
 ## License
 
