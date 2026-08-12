@@ -154,7 +154,7 @@ function connectionState(s) {
 // `srv.listen(0)`), so the redirect_uri is http://127.0.0.1:<random>/callback.
 // A provider that demands one exact pre-registered redirect — OpenAI's stock
 // Codex client wants http://localhost:1455/auth/callback — will refuse it.
-// That is why "paste a token" exists next to this.
+// That is why Local CLI (paste a token) exists next to this.
 async function oauthSignIn() {
   const s = await readSettings();
   const o = s.oauth;
@@ -162,7 +162,7 @@ async function oauthSignIn() {
   const bad = checkOrigin(o.authorizeUrl, 'Authorize URL') || checkOrigin(o.tokenUrl, 'Token URL');
   if (bad) throw new Error(bad);
   const oauth = (window.pluginApi || window.extApi || {}).oauth;
-  if (!oauth) throw new Error('This DraconDex version cannot capture the OAuth redirect. Update the app, paste a token instead, or use API key mode.');
+  if (!oauth) throw new Error('This DraconDex version cannot capture the OAuth redirect. Update the app, use Local CLI instead, or use API key mode.');
 
   const { code, redirectUri, verifier } = await oauth.authorize({
     authorizeUrl: o.authorizeUrl, clientId: o.clientId, scope: o.scope || undefined,

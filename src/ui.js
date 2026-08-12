@@ -215,9 +215,10 @@ function buildOauthSection(s) {
   const signedIn = !!s.oauth.accessToken;
 
   wrap.appendChild(el('div', 'notice',
-    'OpenAI publishes no supported API for driving a ChatGPT subscription from a third-party app. '
-    + 'This mode is a standard OAuth 2.0 + PKCE client pointed at endpoints you supply, and it talks to the '
-    + 'undocumented ChatGPT backend, which may reject an unfamiliar client. API key mode is the supported one.'));
+    'OpenAI publishes no supported API for driving a ChatGPT subscription from a third-party app, and this '
+    + 'plugin does not invent one. Local CLI below is the practical way into this mode; "Sign in" is a '
+    + 'standard OAuth 2.0 + PKCE client pointed at endpoints you supply, useful only if you already have your '
+    + 'own client for the undocumented ChatGPT backend. API key mode remains the fully supported path either way.'));
 
   // --- sign in ---
   wrap.appendChild(el('div', 'pane-label', 'Sign in'));
@@ -225,7 +226,7 @@ function buildOauthSection(s) {
     'DraconDex captures the redirect on a random loopback port (http://127.0.0.1:<random>/callback). '
     + 'A provider that requires one exact pre-registered redirect URI — OpenAI\'s own Codex client wants '
     + 'http://localhost:1455/auth/callback — will refuse that, so this works only with an OAuth client that '
-    + 'accepts dynamic loopback ports. If yours does not, paste a token below instead.'));
+    + 'accepts dynamic loopback ports. If yours does not, use Local CLI below instead.'));
 
   const clientId = input('cfg-client-id', s.oauth.clientId, { placeholder: 'app_…' });
   const authorizeUrl = input('cfg-authorize-url', s.oauth.authorizeUrl, { placeholder: Provider.OAUTH_AUTHORIZE_DEFAULT });
@@ -257,11 +258,13 @@ function buildOauthSection(s) {
     ? `Signed in.${s.oauth.expiresAt ? ` Token expires ${new Date(s.oauth.expiresAt).toLocaleString()}.` : ''}`
     : 'Not signed in.'));
 
-  // --- paste a token ---
-  wrap.appendChild(el('div', 'pane-label', 'Or paste a token'));
+  // --- Local CLI ---
+  wrap.appendChild(el('div', 'pane-label', 'Local CLI'));
   wrap.appendChild(el('div', 'hint',
-    'If you already signed in elsewhere — e.g. `codex login`, which writes ~/.codex/auth.json — paste its '
-    + 'access token here. It is stored and refreshed exactly like one obtained by signing in above.'));
+    'Already signed in with the Codex CLI? `codex login` writes an access token to ~/.codex/auth.json — '
+    + 'paste it here. It is stored and refreshed exactly like one obtained by signing in above. This plugin '
+    + 'never runs the CLI itself — a plugin page has no process access to do that, by design — it only '
+    + 'accepts whatever token `codex login` already produced.'));
 
   const access = input('cfg-access-token', s.oauth.accessToken, { type: 'password', placeholder: 'access token' });
   const refresh = input('cfg-refresh-token', s.oauth.refreshToken, { type: 'password', placeholder: 'refresh token (optional)' });

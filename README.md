@@ -59,11 +59,15 @@ secret never leaves it, and access tokens are refreshed before they expire.
 > client that accepts dynamic loopback ports, per
 > [RFC 8252 §7.3](https://www.rfc-editor.org/rfc/rfc8252#section-7.3).
 
-**2. Paste a token** — for everyone the catch applies to. If you have already
-signed in elsewhere (`codex login` writes `~/.codex/auth.json`), paste the
-access token — plus the refresh token if you want it renewed automatically, and
-a ChatGPT account id if your token spans several workspaces. It is stored and
-used exactly like one obtained by signing in.
+**2. Local CLI** — for everyone the catch above applies to, and the more
+practical way in regardless. If you have already signed in with the [Codex CLI](https://github.com/openai/codex)
+(`codex login` writes `~/.codex/auth.json`), paste the access token — plus the
+refresh token if you want it renewed automatically, and a ChatGPT account id if
+your token spans several workspaces. It is stored and used exactly like one
+obtained by signing in above. This plugin never runs the CLI itself — a plugin
+page has no process access to do that, by design (see
+[App-DraconDex's `docs/PLUGINS.md`](https://github.com/LDKTC/App-DraconDex/blob/main/docs/PLUGINS.md)
+§2.4) — it only accepts whatever token `codex login` already produced.
 
 If neither fits, use API key mode.
 
