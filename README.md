@@ -17,6 +17,12 @@ once; they use different plugin ids and therefore different tables.
 > Requires **DraconDex 4.3.0+** for the docked panel. On 4.2.x it still installs
 > and works as a plain window (Settings → Plugin → Launch) — there is just no
 > button in the main window, because the panel API doesn't exist there yet.
+> **DraconDex 4.8.0+** additionally auto-installs
+> [AI Native](https://github.com/LDKTC/DraconDex-Plugin-Native) the first time
+> this plugin is installed (see [App context](#app-context-ai-native) below).
+> On older versions this plugin still installs and works exactly the same —
+> the app just doesn't know to look at the manifest's `dependencies` field
+> yet, so nothing else gets pulled in automatically.
 
 ## Connecting
 
@@ -78,6 +84,26 @@ Not included: tool use / function calling, file attachments, and server-side
 conversation state (`store` is `false`; the transcript is replayed from this
 plugin's own tables each turn).
 
+## App context (AI Native)
+
+This plugin declares
+[DraconDex-Plugin-Native](https://github.com/LDKTC/DraconDex-Plugin-Native)
+("AI Native") as a manifest `dependencies` entry, so installing this plugin
+auto-installs that one too (DraconDex 4.8.0+). AI Native publishes
+`catalog.json` — a small public file describing DraconDex's features and what
+a plugin can/can't do.
+
+A plugin can't read another plugin's table or files even once both are
+installed side by side, so this plugin doesn't reach into AI Native directly —
+instead, on boot it fetches `catalog.json` straight from that repo
+(`https://raw.githubusercontent.com`, declared in `permissions.net` alongside
+the OpenAI/ChatGPT hosts above) and folds a short summary into the system
+prompt sent with every message, ahead of whatever you wrote in Settings. Your
+own system prompt is never edited or replaced, just prefixed for the outgoing
+request. No internet access to that host, or an older DraconDex with no
+`pluginApi.net`? Chat still works fine — just without the app-context
+preamble.
+
 ## Where your data goes
 
 - **Conversations** live in this plugin's own SQLite tables inside your vault
@@ -104,15 +130,17 @@ plugin's own tables each turn).
     { "id": "chat", "title": "Codex", "icon": "🤖", "entry": "panel.html" }
   ],
   "permissions": {
-    "net": ["https://api.openai.com", "https://auth.openai.com", "https://chatgpt.com"],
+    "net": ["https://api.openai.com", "https://auth.openai.com", "https://chatgpt.com", "https://raw.githubusercontent.com"],
     "context": ["module"]
   },
+  "dependencies": ["https://github.com/LDKTC/DraconDex-Plugin-Native"],
   "tables": [ "…" ]
 }
 ```
 
-`panels` and `permissions` are the DraconDex 4.3.0 additions; everything else is
-the plugin format from 4.2.0. Full rules are in
+`panels` and `permissions` are the DraconDex 4.3.0 additions; `dependencies`
+is 4.8.0 (see [App context](#app-context-ai-native) above); everything else
+is the plugin format from 4.2.0. Full rules are in
 [App-DraconDex's `docs/PLUGINS.md`](https://github.com/LDKTC/App-DraconDex/blob/main/docs/PLUGINS.md).
 
 `permissions.context: ["module"]` lets the panel receive the open module's id,
@@ -132,12 +160,15 @@ auth hosts are declared here and not only the API host.
 | `panel.html` + `panel.js` | Docked-panel entry; asks the host for module context. |
 | `src/store.js` | The three tables, via `window.pluginApi.table.*`. |
 | `src/provider.js` | Responses API client + both auth modes. |
+| `src/catalog.js` | Fetches/caches AI Native's `catalog.json`; composes the app-context preamble onto the system prompt. Independent of `provider.js` — different origin, own `pluginApi.net` call. |
 | `src/chat.js` | Session and turn state; no DOM. |
 | `src/ui.js` | Rendering. Builds nodes, never HTML strings. |
 | `style.css` | Dark theme matching the app; works at 290px and at 900px. |
 | `scripts/validate-manifest.mjs` | Local manifest check. Not shipped — it isn't in `files`. |
+| `test/provider.test.mjs` | Drives `provider.js` against canned SSE. Not shipped. |
+| `test/catalog.test.mjs` | Drives `catalog.js` against a fake `pluginApi.net`/`Store`/page `fetch`. Not shipped. |
 
-Both entries load the same four `src/` scripts and differ only in chrome.
+Both entries load the same five `src/` scripts and differ only in chrome.
 
 ### A constraint worth knowing if you fork this
 
@@ -153,6 +184,7 @@ reload happened is the only thing that can be lost.
 ```bash
 node scripts/validate-manifest.mjs        # same rules the app enforces on install
 node --check app.js panel.js src/*.js
+node --test test/*.test.mjs
 ```
 
 Then in DraconDex: **Settings → Plugin → Plugins**, paste this repo's link,

@@ -11,6 +11,7 @@
     "style.css",
     "src/store.js",
     "src/provider.js",
+    "src/catalog.js",
     "src/chat.js",
     "src/ui.js"
   ],
@@ -21,10 +22,12 @@
     "net": [
       "https://api.openai.com",
       "https://auth.openai.com",
-      "https://chatgpt.com"
+      "https://chatgpt.com",
+      "https://raw.githubusercontent.com"
     ],
     "context": ["module"]
   },
+  "dependencies": ["https://github.com/LDKTC/DraconDex-Plugin-Native"],
   "tables": [
     {
       "name": "session",

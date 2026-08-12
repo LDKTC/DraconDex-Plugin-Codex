@@ -32,6 +32,7 @@ const MAX_PANEL_TITLE = 40;
 const MAX_PANEL_ICON = 8;
 const MAX_NET_ORIGINS = 10;
 const CONTEXT_KINDS = new Set(['module']);
+const MAX_DEPENDENCIES = 5; // v4.8.0
 
 const manifestPath = resolve(process.argv[2] || 'dracondex-plugin.json');
 const root = dirname(manifestPath);
@@ -46,7 +47,7 @@ try {
   process.exit(1);
 }
 
-const { id, name, version, entry, files, tables, panels, permissions } = manifest;
+const { id, name, version, entry, files, tables, panels, permissions, dependencies } = manifest;
 
 if (!PLUGIN_ID_RE.test(String(id || ''))) errors.push('invalid or missing "id" (^[a-z0-9_]{1,20}$)');
 if (!name || typeof name !== 'string' || name.length > 80) errors.push('invalid or missing "name" (string, max 80 chars)');
@@ -155,6 +156,30 @@ if (permissions != null) {
   }
 }
 
+// --- dependencies (v4.8.0) --------------------------------------------------
+// Other plugins to auto-install alongside this one. NOT a full port of the
+// app's parseRepoUrl (that's ~100 lines just for the URL shapes it accepts —
+// https/ssh/scp/no-scheme/owner-repo-shorthand/tree-ref/GitLab nested groups)
+// — this only catches the obvious local mistakes. The app re-resolves every
+// entry for real over the network at install time (docs/PLUGINS.md §1.8),
+// exactly like it does for the primary plugin URL; that resolution is the
+// actual validation, and it can't happen offline in this script.
+const depList = dependencies == null ? [] : dependencies;
+if (dependencies != null) {
+  if (!Array.isArray(dependencies) || dependencies.length > MAX_DEPENDENCIES) {
+    errors.push(`"dependencies" must be an array of at most ${MAX_DEPENDENCIES} entries`);
+  } else {
+    const seen = new Set();
+    for (const dep of dependencies) {
+      const s = typeof dep === 'string' ? dep.trim() : '';
+      if (!s || /\s/.test(s) || !s.includes('/')) { errors.push(`invalid dependency url: ${dep}`); continue; }
+      const key = s.toLowerCase().replace(/\.git$/, '').replace(/\/+$/, '');
+      if (seen.has(key)) errors.push(`duplicate dependency: ${dep}`);
+      seen.add(key);
+    }
+  }
+}
+
 for (const w of warnings) console.warn(`! ${w}`);
 if (errors.length) {
   console.error(`✗ ${manifestPath}`);
@@ -166,4 +191,5 @@ console.log(`✓ ${manifest.name} (${id}) v${version ?? '—'}`);
 console.log(`  files:  ${files.length} (entry: ${entry})`);
 if (panelList.length) console.log(`  panels: ${panelList.map((p) => `${p.id} → ${p.entry}`).join(', ')}`);
 if (netOrigins.length) console.log(`  net:    ${netOrigins.join(', ')}`);
+if (depList.length) console.log(`  deps:   ${depList.join(', ')}`);
 console.log(`  tables: ${tableSummary}`);

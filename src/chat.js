@@ -29,6 +29,9 @@ async function boot({ moduleContext = null } = {}) {
   Chat.moduleContext = moduleContext;
   Chat.settings = await Provider.readSettings();
   Chat.sessions = await Store.listSessions();
+  // Fire-and-forget: a slow or offline catalog fetch must never delay the
+  // chat becoming usable. Whatever it finds is picked up by the next send().
+  Catalog.ensure();
 
   // Prefer a session already tied to this module, so re-opening the panel on a
   // module returns to that module's conversation rather than a global one.
@@ -158,7 +161,11 @@ async function send(text) {
   UI.render();
 
   const result = await Provider.sendMessage({
-    settings: Chat.settings,
+    // AI Native's catalog preamble (if one was ever fetched) rides in front of
+    // whatever system prompt the user configured — see src/catalog.js. Only
+    // this outgoing copy is augmented; Chat.settings and the stored session
+    // keep the user's own text exactly as they wrote it.
+    settings: { ...Chat.settings, systemPrompt: Catalog.composeSystemPrompt(Chat.settings.systemPrompt) },
     messages: wireMessages(),
     onDelta: ({ text: t, reasoning }) => {
       if (t) Chat.streamText += t;
